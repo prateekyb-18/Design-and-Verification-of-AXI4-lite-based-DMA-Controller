@@ -1,344 +1,514 @@
-AXI4-Lite Based DMA Controller — RTL Design & UVM Verification
+# AXI4-Lite Based DMA Controller – RTL Design and UVM Verification
+
+## 📌 Project Overview
+
+This project presents the **RTL design and UVM-based verification of an AXI4-Lite based DMA (Direct Memory Access) Controller** using SystemVerilog.
+
+The DMA controller enables data transfer between source and destination memory without continuous CPU intervention. The CPU configures the DMA controller through an AXI4-Lite slave interface by writing the source address, destination address, and transfer length. Once the transfer is started, the DMA controller manages the complete data movement using dedicated AXI read and write master interfaces.
+
+The project includes complete **RTL design, block-level verification, UVM-based verification, simulation waveforms, and synthesis results**.
+
+---
+
+## 🎯 Project Objectives
+
+* Design an AXI4-Lite based DMA controller using SystemVerilog.
+* Implement CPU-accessible DMA configuration registers.
+* Implement AXI read and write master interfaces.
+* Buffer transferred data using a FIFO.
+* Automatically generate and update source and destination addresses.
+* Control the DMA operation using a finite state machine.
+* Generate an interrupt after completion of the DMA transfer.
+* Verify the individual RTL blocks using dedicated testbenches.
+* Develop a complete UVM verification environment.
+* Analyze simulation waveforms using GTKWave.
+* Perform RTL synthesis using Yosys.
+* Generate and analyze the synthesized DMA subsystem structure.
+
+---
+
+# 🏗️ DMA Controller Architecture
+
+The DMA controller consists of the following major blocks:
+
+```text
+                         +------------------+
+                         |       CPU        |
+                         +--------+---------+
+                                  |
+                                  | AXI4-Lite
+                                  v
+                    +-------------------------+
+                    | AXI4-Lite Register      |
+                    | Interface              |
+                    +-----------+-------------+
+                                |
+                                v
+                    +-------------------------+
+                    |     Control FSM         |
+                    +----+---------------+----+
+                         |               |
+                         |               |
+                         v               v
+                +----------------+   +----------------+
+                |   AXI Read     |   |   AXI Write    |
+                |    Master      |   |    Master      |
+                +-------+--------+   +-------+--------+
+                        |                    ^
+                        |                    |
+                        v                    |
+                  +-----------------------------+
+                  |       Data FIFO             |
+                  +-----------------------------+
+                        |
+                        |
+                        v
+                +----------------+
+                | Address        |
+                | Generator      |
+                +----------------+
 
-Overview
+                         |
+                         v
+                   +-----------+
+                   | Interrupt |
+                   +-----------+
+```
 
-This project implements a parameterized DMA (Direct Memory Access) controller using SystemVerilog RTL, with an AXI4-Lite slave interface for CPU configuration and AXI-style master interfaces for moving data between source and destination memory.
+---
 
-The DMA controller is designed to transfer data without requiring the CPU to handle every individual data movement. The CPU configures the DMA through memory-mapped AXI4-Lite registers, starts the transfer, and the DMA controller manages the read, buffering, write, address update, completion, and interrupt-generation operations.
+# 🔹 Main RTL Blocks
 
-The project also includes a UVM-based verification environment for verifying the AXI4-Lite interface and DMA operation using a simulated memory model, driver, monitor, sequencer, sequence, agent, environment, and scoreboard.
+## 1. AXI4-Lite Register Interface
 
-Main Features
+The register interface provides the CPU-facing AXI4-Lite slave interface.
 
-SystemVerilog RTL implementation
+It is responsible for:
 
-AXI4-Lite slave/register interface for CPU configuration
+* Receiving AXI4-Lite write transactions.
+* Receiving AXI4-Lite read transactions.
+* Storing DMA configuration information.
+* Providing status information to the CPU.
+* Generating the DMA start control.
+* Handling register read/write responses.
 
-AXI read master for fetching source data
+### Configuration Registers
 
-AXI write master for sending data to the destination
+| Address | Register            | Description                            |
+| ------: | ------------------- | -------------------------------------- |
+|  `0x00` | Source Address      | Starting address of source memory      |
+|  `0x04` | Destination Address | Starting address of destination memory |
+|  `0x08` | Transfer Length     | Number of bytes to transfer            |
+|  `0x0C` | Start               | Starts the DMA transfer                |
+|  `0x10` | Status              | DMA transfer status                    |
 
-16-entry, 32-bit data FIFO for temporary data buffering
+---
 
-Burst-based data transfer
+## 2. Control FSM
 
-Configurable source address, destination address, and transfer length
+The Control FSM coordinates the complete DMA transfer.
 
-Automatic source/destination address increment
+It controls:
 
-Transfer-completion detection
+* DMA initialization.
+* Read operation.
+* FIFO operation.
+* Write operation.
+* Address updates.
+* Transfer completion.
+* Interrupt generation.
 
-DMA completion signal
+The FSM ensures that the read and write operations occur in the correct sequence.
 
-Interrupt generation with enable and clear control
+---
 
-Debug state outputs for internal FSMs
+## 3. AXI Read Master
 
-Individual RTL testbenches for major blocks
+The AXI Read Master is responsible for reading data from the source memory.
 
-UVM verification environment
+It performs:
 
-AXI transaction, driver, monitor, scoreboard, sequencer and memory model
+* Read address generation.
+* AXI read transactions.
+* Read data reception.
+* Read response handling.
+* FIFO write control.
+* Burst completion detection.
 
-Simulation waveforms and synthesized/netlist representation included
+The received data is stored temporarily in the FIFO before being transferred to the destination.
 
-DMA Architecture
+---
 
-The design is divided into the following major blocks:
+## 4. AXI Write Master
 
-AXI4-Lite Register Interface
+The AXI Write Master transfers data from the FIFO to the destination memory.
 
-Provides the CPU-facing configuration interface.
+It performs:
 
-Handles AXI4-Lite read and write transactions.
+* Write address generation.
+* Write data generation.
+* Write strobe control.
+* Last-beat generation.
+* Write response handling.
+* FIFO read control.
+* Burst completion detection.
 
-Stores source address, destination address, and transfer length.
+---
 
-Generates the DMA start pulse.
+## 5. Data FIFO
 
-Provides status information.
+The FIFO provides temporary storage between the AXI read and write paths.
 
-Control FSM
+The FIFO helps to:
 
-Controls the complete DMA transfer sequence.
+* Buffer incoming data.
+* Decouple read and write operations.
+* Prevent data loss.
+* Provide controlled data flow between the read and write masters.
 
-Coordinates configuration loading, read bursts, FIFO operation, write bursts, address updates, and completion.
+The implemented FIFO is:
 
-Read Master
+* **Depth:** 16 entries
+* **Data width:** 32 bits
 
-Generates read-address transactions.
+---
 
-Receives source data.
+## 6. Address Generator
 
-Writes received data into the FIFO.
+The Address Generator manages the source and destination addresses during DMA operation.
 
-Detects completion of each read burst.
+It performs:
 
-FIFO
+* Initial source address loading.
+* Initial destination address loading.
+* Source address increment.
+* Destination address increment.
+* Transfer length tracking.
 
-Temporarily stores data between the read and write sides.
+This allows the DMA controller to automatically move through consecutive memory locations.
 
-Prevents the read and write paths from having to operate at exactly the same time.
+---
 
-Write Master
+## 7. Interrupt Controller
 
-Generates write-address transactions.
+The interrupt block generates an interrupt when the DMA transfer is completed.
 
-Reads data from the FIFO.
+It provides:
 
-Generates write-data and last-beat indications.
+* DMA completion indication.
+* Interrupt enable control.
+* Interrupt generation.
+* Interrupt clear functionality.
 
-Handles the write response.
+---
 
-Address Generator
+# 🔄 DMA Transfer Operation
 
-Loads the initial source and destination addresses.
+The complete DMA operation follows these steps:
 
-Tracks the remaining transfer length.
+```text
+1. CPU configures source address
+             ↓
+2. CPU configures destination address
+             ↓
+3. CPU configures transfer length
+             ↓
+4. CPU writes START
+             ↓
+5. DMA Control FSM starts
+             ↓
+6. AXI Read Master reads source data
+             ↓
+7. Data is stored in FIFO
+             ↓
+8. AXI Write Master reads FIFO data
+             ↓
+9. Data is written to destination memory
+             ↓
+10. Source and destination addresses are updated
+             ↓
+11. Remaining transfer length is checked
+             ↓
+12. DMA completes when all data is transferred
+             ↓
+13. Interrupt is generated
+```
 
-Automatically increments addresses after each burst.
+---
 
-Interrupt
-
-Generates an interrupt when DMA completion occurs and interrupt generation is enabled.
-
-Supports interrupt clearing.
-
-Register Map
-
-Address
-
-Register
-
-Description
-
-0x00
-
-Source Address
-
-Starting source memory address
-
-0x04
-
-Destination Address
-
-Starting destination memory address
-
-0x08
-
-Transfer Length
-
-Number of bytes to transfer
-
-0x0C
-
-Start
-
-Writing to this register starts the DMA
-
-0x10
-
-Status
-
-DMA completion status
-
-DMA Transfer Flow
-
-CPU
- |
- | AXI4-Lite configuration
- v
-+----------------------+
-| AXI4-Lite Register   |
-| Interface            |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| Control FSM          |
-+----+-------------+---+
-     |             |
-     v             v
-+---------+     +---------+
-| Read    | --> |  FIFO   | --> Write
-| Master  |     | Buffer  |     Master
-+----+----+     +---------+     +----+----+
-     |                                |
-     v                                v
- Source Memory                  Destination Memory
-
-           |
-           v
-   Address Generator
-           |
-           v
-     Transfer Done
-           |
-           v
-       Interrupt
-
-Control FSM
-
-The DMA controller uses the following control states:
-
-IDLE
-
-LOAD_CONFIG
-
-WAIT_FIFO_SPACE
-
-READ_BURST
-
-WAIT_READ
-
-WAIT_FIFO_DATA
-
-WRITE_BURST
-
-CHECK_DONE
-
-DONE
-
-The FSM coordinates the read and write masters and ensures that data is transferred only when the FIFO and AXI interfaces are ready.
-
-Burst Configuration
+# ⚙️ DMA Configuration
 
 The current implementation uses:
 
-Address width: 32 bits
+| Parameter       | Value      |
+| --------------- | ---------- |
+| Address Width   | 32 bits    |
+| Data Width      | 32 bits    |
+| Burst Length    | 4 beats    |
+| Bytes per Beat  | 4 bytes    |
+| Bytes per Burst | 16 bytes   |
+| FIFO Depth      | 16 entries |
 
-Data width: 32 bits
+For example:
 
-Burst length: 4 beats
+```text
+Transfer Length = 16 bytes
 
-Data per beat: 4 bytes
+32-bit data = 4 bytes/beat
 
-Bytes per burst: 16 bytes
+16 bytes / 4 bytes = 4 beats
+```
 
-FIFO depth: 16 entries
+Therefore, a 16-byte transfer requires one 4-beat burst.
 
-For example, a transfer length of 0x10 represents a 16-byte transfer, corresponding to one 4-beat burst with 32-bit data.
+---
 
-UVM Verification Environment
+# 🧠 Control FSM
 
-The project includes a UVM testbench organized into the standard UVM hierarchy:
+The DMA controller uses a finite state machine to control the transfer process.
 
-axi_test
-   |
-   v
-axi_env
-   |
-   +-------------------+
-   |                   |
-   v                   v
-axi_agent         axi_scoreboard
-   |
-   +---------------------------+
-   |             |             |
-   v             v             v
-Sequencer      Driver        Monitor
-                              |
-                              v
-                        Analysis Port
-                              |
-                              v
-                          Scoreboard
+The major states include:
 
-axi_memory_model
-        |
-        v
-  Simulated Memory
+```text
+IDLE
+  ↓
+LOAD_CONFIG
+  ↓
+WAIT_FIFO_SPACE
+  ↓
+READ_BURST
+  ↓
+WAIT_READ
+  ↓
+WAIT_FIFO_DATA
+  ↓
+WRITE_BURST
+  ↓
+CHECK_DONE
+  ↓
+DONE
+```
 
-UVM Components
+The FSM coordinates the AXI read master, FIFO, AXI write master, address generator, and interrupt logic.
 
-Component
+---
 
-Purpose
+# 🧪 Verification
 
+The project contains two levels of verification.
+
+## 1. Block-Level Verification
+
+Individual testbenches were created for the major RTL blocks.
+
+The verified blocks include:
+
+* Address Generator
+* Control FSM
+* FIFO
+* Interrupt
+* AXI Read Master
+* AXI4-Lite Register Interface
+* AXI Write Master
+* DMA Subsystem Top
+
+These testbenches verify the functionality of each block independently.
+
+---
+
+# 🧪 UVM Verification Environment
+
+A complete UVM-based verification environment was developed for the DMA subsystem.
+
+The UVM architecture contains:
+
+```text
+                    +----------------+
+                    |    AXI Test    |
+                    +-------+--------+
+                            |
+                            v
+                    +----------------+
+                    |    AXI Env     |
+                    +-------+--------+
+                            |
+             +--------------+--------------+
+             |                             |
+             v                             v
+      +-------------+              +--------------+
+      |  AXI Agent  |              |  Scoreboard  |
+      +------+------+              +--------------+
+             |
+       +-----+-----+----------+
+       |           |          |
+       v           v          v
++----------+ +----------+ +----------+
+|Sequencer | |  Driver  | | Monitor  |
++----------+ +----------+ +----------+
+                            |
+                            v
+                    +---------------+
+                    | Memory Model  |
+                    +---------------+
+```
+
+---
+
+# 🔹 UVM Components
+
+## AXI Transaction
+
+Defines the transaction-level representation of AXI operations.
+
+File:
+
+```text
 axi_transaction.sv
+```
 
-Defines AXI read/write sequence items
+---
 
+## AXI Sequence
+
+Generates AXI transactions used to configure and start the DMA.
+
+File:
+
+```text
 axi_sequence.sv
+```
 
-Generates DMA configuration transactions
+---
 
+## AXI Sequencer
+
+Controls the flow of transactions from the sequence to the driver.
+
+File:
+
+```text
 axi_sequencer.sv
+```
 
-Supplies transactions to the driver
+---
 
+## AXI Driver
+
+Drives AXI4-Lite transactions onto the DUT interface.
+
+File:
+
+```text
 axi_driver.sv
+```
 
-Drives AXI4-Lite transactions onto the interface
+---
 
+## AXI Monitor
+
+Observes AXI transactions from the DUT interface and sends them to the scoreboard.
+
+File:
+
+```text
 axi_monitor.sv
+```
 
-Observes AXI transactions
+---
 
+## AXI Scoreboard
+
+Receives monitored transactions and performs checking of the expected behavior.
+
+File:
+
+```text
 axi_scoreboard.sv
+```
 
-Reports and checks observed transactions
+---
 
+## AXI Agent
+
+Contains the:
+
+* Sequencer
+* Driver
+* Monitor
+
+File:
+
+```text
 axi_agent.sv
+```
 
-Groups sequencer, driver and monitor
+---
 
+## AXI Environment
+
+Integrates the agent, scoreboard, and other verification components.
+
+File:
+
+```text
 axi_env.sv
+```
 
-Top-level UVM environment
+---
 
+## AXI Memory Model
+
+Provides a simulated memory environment for the DMA read and write operations.
+
+File:
+
+```text
 axi_memory_model.sv
+```
 
-Models source/destination memory behavior
+---
 
-axi_test.sv
+## AXI Interface
 
-Starts the verification sequence
+Provides the connection between the UVM testbench and DUT.
 
+File:
+
+```text
 axi_dma_if.sv
+```
 
-SystemVerilog interface connecting the UVM testbench and DUT
+---
 
+## AXI Testbench
+
+Top-level simulation module that connects the DUT and UVM environment.
+
+File:
+
+```text
 axi_tb.sv
+```
 
-Simulation top module
+---
 
-Verification Sequence
+## AXI Test
 
-The included UVM sequence performs the following configuration:
+Top-level UVM test that creates the verification environment and starts the required sequences.
 
-Source Address      = 0x00001000
-Destination Address = 0x00002000
-Transfer Length     = 0x00000010
-Start               = 1
+File:
 
-The testbench then allows the DMA operation to execute while the UVM components observe and report the AXI transactions.
+```text
+axi_test.sv
+```
 
-RTL Block Testbenches
+---
 
-Individual testbenches are provided for:
+# 📂 Project Structure
 
-Add/Address Generator
-
-Control FSM
-
-FIFO
-
-Interrupt
-
-Read Master
-
-Register Interface
-
-Write Master
-
-DMA Subsystem Top
-
-These provide block-level verification in addition to the UVM-based subsystem verification.
-
-Repository Structure
-
-.
+```text
+AXI4-Lite-DMA-Controller/
+│
 ├── rtl/
 │   ├── add_gen.sv
 │   ├── cfsm.sv
@@ -375,124 +545,171 @@ Repository Structure
 │   └── uvm_pkg_import.svh
 │
 ├── waveforms/
-│   ├── add_gen.png
-│   ├── cfsm.png
-│   ├── fifo.png
-│   ├── interrupt.png
-│   ├── read_master.png
-│   ├── reg_interface.png
-│   └── write_master.png
 │
 ├── terminal output/
-│   ├── Add_gen.png
-│   ├── cfsm.png
-│   ├── dma subsystem netlist.png
-│   ├── dma subsystem.png
-│   ├── interrupt.png
-│   ├── read_master.png
-│   └── write_master.png
 │
-└── dma_schematic.pdf
+├── dma_schematic.pdf
+│
+└── README.md
+```
 
-Tools Used
+---
 
-SystemVerilog — RTL design and verification
+# 🛠️ Tools and Technologies
 
-UVM — constrained-random/structured verification framework
+The project was developed and verified using:
 
-Icarus Verilog — RTL simulation
+* **SystemVerilog** – RTL design and verification
+* **UVM** – Universal Verification Methodology
+* **Icarus Verilog** – RTL simulation
+* **GTKWave** – Waveform analysis
+* **Yosys** – RTL synthesis
+* **Graphviz** – Netlist visualization
+* **Ubuntu Linux** – Development and simulation environment
 
-GTKWave — waveform analysis
+---
 
-Yosys — RTL synthesis
+# 📊 Simulation and Waveform Analysis
 
-Graphviz — synthesis/netlist visualization
+Simulation waveforms were generated for the individual RTL blocks and DMA subsystem.
 
-Linux/Ubuntu — development and simulation environment
+The waveforms can be used to verify:
 
-For UVM simulation, use a simulator/version with the SystemVerilog and UVM features required by the testbench.
+* Clock and reset behavior
+* AXI handshaking
+* FSM state transitions
+* FIFO read/write operation
+* Address generation
+* Read transactions
+* Write transactions
+* DMA completion
+* Interrupt generation
 
-Results
+Waveform screenshots are included in the repository for reference.
 
-The repository contains:
+---
 
-RTL source code for the complete DMA subsystem
+# 🔬 Synthesis
 
-Block-level testbenches
+The RTL design was synthesized using **Yosys**.
 
-UVM verification environment
+The repository contains the synthesized DMA subsystem representation and schematic/netlist output.
 
-Simulation waveforms
+Synthesis was performed to verify that the RTL design can be converted into a hardware-oriented representation and to inspect the resulting design structure.
 
-Synthesized/netlist visualization
+---
 
-DMA schematic
+# 📈 Verification Flow
 
-The waveforms can be used to inspect AXI handshakes, FSM transitions, FIFO activity, read/write operations, and interrupt/completion behavior.
+The overall verification flow used in this project is:
 
-Key Learning Outcomes
+```text
+RTL Design
+    ↓
+Block-Level Testbenches
+    ↓
+RTL Simulation
+    ↓
+Waveform Analysis
+    ↓
+DMA Subsystem Integration
+    ↓
+UVM Environment
+    ↓
+AXI Transactions
+    ↓
+Memory Model
+    ↓
+Monitor
+    ↓
+Scoreboard
+    ↓
+Verification Results
+    ↓
+RTL Synthesis
+```
 
-This project demonstrates practical experience with:
+---
 
-RTL design using SystemVerilog
+# 🎓 Key Learning Outcomes
 
-AXI4-Lite protocol concepts
+This project provided practical experience in:
 
-AXI read/write channel handshaking
+* RTL design using SystemVerilog
+* AXI4-Lite protocol
+* AXI read/write handshaking
+* DMA controller architecture
+* Finite State Machine design
+* FIFO design
+* Burst-based data transfer
+* Memory-mapped registers
+* Address generation
+* Interrupt generation
+* SystemVerilog interfaces
+* UVM testbench architecture
+* UVM sequences
+* UVM sequencers
+* UVM drivers
+* UVM monitors
+* UVM agents
+* UVM environments
+* Scoreboards
+* Simulation and waveform debugging
+* RTL synthesis
+* Netlist analysis
 
-DMA architecture
+---
 
-Finite State Machine design
+# 🚀 Future Improvements
 
-FIFO-based buffering
+The project can be further extended with:
 
-Burst data transfers
+* Functional coverage
+* AXI protocol assertions using SVA
+* More extensive constrained-random testing
+* Variable burst lengths
+* Unaligned data transfers
+* AXI error-response testing
+* Performance and throughput measurement
+* More advanced reference-model-based scoreboard
+* Multiple DMA channels
+* Additional DMA status and control registers
 
-Memory-mapped register design
+---
 
-Interrupt generation
+# 👨‍💻 Author
 
-SystemVerilog interfaces
-
-UVM testbench architecture
-
-Drivers, monitors, sequencers and scoreboards
-
-RTL simulation and waveform debugging
-
-RTL synthesis and netlist visualization
-
-Future Improvements
-
-Possible extensions include:
-
-More complete AXI protocol response/error checking
-
-Support for variable burst lengths
-
-Support for unaligned transfers
-
-Separate source and destination memory models
-
-Stronger reference-model-based scoreboard checking
-
-Functional coverage and cross coverage
-
-Assertions/SVA for AXI protocol checking
-
-Multiple DMA channels
-
-More extensive constrained-random testing
-
-Performance/throughput measurements
-
-Author
-
-Prateek Badagannavar
+**Prateek Badagannavar**
 
 Electronics and Communication Engineering
 MVJ College of Engineering, Bengaluru
 
-Project
+---
 
-RTL Design and UVM Verification of an AXI4-Lite Based DMA Controller
+# 📌 Project Title
+
+**RTL Design and UVM Verification of an AXI4-Lite Based DMA Controller**
+
+---
+
+## ⭐ Keywords
+
+```text
+AXI4-Lite
+DMA Controller
+RTL Design
+SystemVerilog
+UVM
+AXI Protocol
+FIFO
+FSM
+ASIC
+VLSI
+RTL Verification
+Functional Verification
+Yosys
+Icarus Verilog
+GTKWave
+Digital Design
+Hardware Verification
+```
