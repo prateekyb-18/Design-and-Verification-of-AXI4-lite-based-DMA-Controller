@@ -1,6 +1,6 @@
 # AXI4-Lite Based DMA Controller – RTL Design and UVM Verification
 
-## 📌 Project Overview
+##  Project Overview
 
 This project presents the **RTL design and UVM-based verification of an AXI4-Lite based DMA (Direct Memory Access) Controller** using SystemVerilog.
 
@@ -10,7 +10,7 @@ The project includes complete **RTL design, block-level verification, UVM-based 
 
 ---
 
-## 🎯 Project Objectives
+##  Project Objectives
 
 * Design an AXI4-Lite based DMA controller using SystemVerilog.
 * Implement CPU-accessible DMA configuration registers.
@@ -27,7 +27,7 @@ The project includes complete **RTL design, block-level verification, UVM-based 
 
 ---
 
-# 🏗️ DMA Controller Architecture
+#  DMA Controller Architecture
 
 The DMA controller consists of the following major blocks:
 
@@ -77,7 +77,7 @@ The DMA controller consists of the following major blocks:
 
 ---
 
-# 🔹 Main RTL Blocks
+#  Main RTL Blocks
 
 ## 1. AXI4-Lite Register Interface
 
@@ -202,7 +202,7 @@ It provides:
 
 ---
 
-# 🔄 DMA Transfer Operation
+#  DMA Transfer Operation
 
 The complete DMA operation follows these steps:
 
@@ -236,7 +236,7 @@ The complete DMA operation follows these steps:
 
 ---
 
-# ⚙️ DMA Configuration
+#  DMA Configuration
 
 The current implementation uses:
 
@@ -263,7 +263,7 @@ Therefore, a 16-byte transfer requires one 4-beat burst.
 
 ---
 
-# 🧠 Control FSM
+#  Control FSM
 
 The DMA controller uses a finite state machine to control the transfer process.
 
@@ -293,7 +293,7 @@ The FSM coordinates the AXI read master, FIFO, AXI write master, address generat
 
 ---
 
-# 🧪 Verification
+#  Verification
 
 The project contains two levels of verification.
 
@@ -316,7 +316,7 @@ These testbenches verify the functionality of each block independently.
 
 ---
 
-# 🧪 UVM Verification Environment
+#  UVM Verification Environment
 
 A complete UVM-based verification environment was developed for the DMA subsystem.
 
@@ -354,7 +354,7 @@ The UVM architecture contains:
 
 ---
 
-# 🔹 UVM Components
+#  UVM Components
 
 ## AXI Transaction
 
@@ -504,7 +504,7 @@ axi_test.sv
 
 ---
 
-# 📂 Project Structure
+#  Project Structure
 
 ```text
 AXI4-Lite-DMA-Controller/
@@ -555,7 +555,7 @@ AXI4-Lite-DMA-Controller/
 
 ---
 
-# 🛠️ Tools and Technologies
+#  Tools and Technologies
 
 The project was developed and verified using:
 
@@ -569,7 +569,7 @@ The project was developed and verified using:
 
 ---
 
-# 📊 Simulation and Waveform Analysis
+#  Simulation and Waveform Analysis
 
 Simulation waveforms were generated for the individual RTL blocks and DMA subsystem.
 
@@ -589,7 +589,7 @@ Waveform screenshots are included in the repository for reference.
 
 ---
 
-# 🔬 Synthesis
+#  Synthesis
 
 The RTL design was synthesized using **Yosys**.
 
@@ -599,7 +599,7 @@ Synthesis was performed to verify that the RTL design can be converted into a ha
 
 ---
 
-# 📈 Verification Flow
+#  Verification Flow
 
 The overall verification flow used in this project is:
 
@@ -631,7 +631,7 @@ RTL Synthesis
 
 ---
 
-# 🎓 Key Learning Outcomes
+#  Key Learning Outcomes
 
 This project provided practical experience in:
 
@@ -660,7 +660,7 @@ This project provided practical experience in:
 
 ---
 
-# 🚀 Future Improvements
+#  Future Improvements
 
 The project can be further extended with:
 
@@ -677,7 +677,7 @@ The project can be further extended with:
 
 ---
 
-# 👨‍💻 Author
+#  Author
 
 **Prateek Badagannavar**
 
@@ -686,13 +686,13 @@ MVJ College of Engineering, Bengaluru
 
 ---
 
-# 📌 Project Title
+#  Project Title
 
 **RTL Design and UVM Verification of an AXI4-Lite Based DMA Controller**
 
 ---
 
-## ⭐ Keywords
+##  Keywords
 
 ```text
 AXI4-Lite
